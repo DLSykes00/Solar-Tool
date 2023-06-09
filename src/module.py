@@ -21,7 +21,7 @@ class Module:
         self.overcast = 0
         self.cloud_opacity = 0.25
         self.air_mass = 1
-        self.albedo = 0.2  # albedo of ground
+        self.albedo = 0.2  # Albedo of ground
 
         self.direct_irradiance = 0
         self.diffuse_irradiance = 0
@@ -32,17 +32,22 @@ class Module:
 
         self.sun = Sun()
 
-    # Calculate components of light sources that project on to solar module
+    # Find the total intensity of light on the module for given parameters
     def calculate_intensity(self, day, time, weather):
         self.overcast = weather.check_weather()
         self.update_irradiance(day, time)
 
+        if self.tracking == 1:
+            self.tilt = self.sun.zenith
+            self.azimuth = self.sun.azimuth
+        elif self.tracking == 2:
+            self.azimuth = self.sun.azimuth
+
         direct_irradiance_module = self.direct_irradiance * (
-                sin_d(self.sun.zenith) * sin_d(self.tilt) * cos_d(self.azimuth - self.sun.azimuth) + cos_d(
-            self.sun.zenith) * cos_d(self.tilt))  # Convert to dot product?
+                sin_d(self.sun.zenith) * sin_d(self.tilt) * cos_d(self.azimuth - self.sun.azimuth) +
+                cos_d(self.sun.zenith) * cos_d(self.tilt))  # Convert to dot product?
         if direct_irradiance_module < 0:  # module intensity may be negative if sun is behind solar panel
             direct_irradiance_module = 0
-
         diffuse_irradiance_module = self.diffuse_irradiance * ((1 + cos_d(self.tilt)) / 2)
         cloud_irradiance_module = self.cloud_irradiance * ((1 + cos_d(self.tilt)) / 2)
         reflected_irradiance_module = self.reflected_irradiance * ((1 - cos_d(self.tilt)) / 2)
@@ -53,7 +58,7 @@ class Module:
         else:
             self.intensity = direct_irradiance_module + diffuse_irradiance_module + reflected_irradiance_module
 
-    # Calculates the intensity of light on a solar module or arbitrary orientation
+    # Calculates the intensity of light for given day/time
     def update_irradiance(self, day, time):
         self.sun.calculate_solar_irradiance(day)
         self.sun.calculate_solar_position(day, time, self.latitude, self.longitude)
@@ -63,13 +68,7 @@ class Module:
         self.calculate_cloud_irradiance(self.sun.zenith)
         self.calculate_reflected_irradiance(self.sun.zenith)
 
-        if self.tracking == 1:
-            self.tilt = self.sun.zenith
-            self.azimuth = self.sun.azimuth
-        elif self.tracking == 2:
-            self.azimuth = self.sun.azimuth
-
-    # Calculates direct irradiance on a perpendicular plane at the earth's surface
+    # Calculates direct irradiance on a horizontal plane at the earth's surface
     def calculate_direct_irradiance(self, sun_zenith, solar_irradiance):
         if sun_zenith < 90:
             # approximation for air mass that
@@ -79,11 +78,11 @@ class Module:
         else:
             self.direct_irradiance = 0
 
-    # Estimation of diffuse irradiance on horizontal plane
+    # Estimation of diffuse irradiance on horizontal plane at the earth's surface
     def calculate_diffuse_irradiance(self):
         self.diffuse_irradiance = 0.1 * self.direct_irradiance
 
-    # Estimation of cloud irradiance on horizontal plane (if overcast)
+    # Estimation of cloud irradiance on horizontal plane (if overcast) at the earth's surface
     def calculate_cloud_irradiance(self, sun_zenith):
         if self.overcast:
             self.cloud_irradiance = self.cloud_opacity * (
